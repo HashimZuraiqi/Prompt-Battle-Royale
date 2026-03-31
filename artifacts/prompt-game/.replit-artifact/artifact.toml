@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Prompt Engineering Game"
+version = "1.0.0"
+id = "artifacts/prompt-game"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23434
+
+[services.development]
+run = "pnpm --filter @workspace/prompt-game run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/prompt-game", "run", "build" ]
+publicDir = "artifacts/prompt-game/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23434"
+BASE_PATH = "/"

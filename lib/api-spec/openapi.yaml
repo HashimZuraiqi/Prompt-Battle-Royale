@@ -1,15 +1,24 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Prompt Engineering Game API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: rooms
+    description: Game room operations
+  - name: players
+    description: Player operations
+  - name: rounds
+    description: Round operations
+  - name: submissions
+    description: Prompt submission operations
+  - name: leaderboard
+    description: Leaderboard operations
 paths:
   /healthz:
     get:
@@ -24,6 +33,334 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /rooms:
+    post:
+      operationId: createRoom
+      tags: [rooms]
+      summary: Create a new game room
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoomBody"
+      responses:
+        "201":
+          description: Room created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+
+  /rooms/{code}:
+    get:
+      operationId: getRoom
+      tags: [rooms]
+      summary: Get room by code
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Room details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomWithDetails"
+        "404":
+          description: Room not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rooms/{code}/start:
+    post:
+      operationId: startRoom
+      tags: [rooms]
+      summary: Start the game (host only)
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HostActionBody"
+      responses:
+        "200":
+          description: Room started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+
+  /rooms/{code}/players:
+    post:
+      operationId: joinRoom
+      tags: [players]
+      summary: Join a game room as a player
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JoinRoomBody"
+      responses:
+        "201":
+          description: Joined room
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Player"
+        "404":
+          description: Room not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      operationId: getRoomPlayers
+      tags: [players]
+      summary: Get all players in a room
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of players
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Player"
+
+  /rooms/{code}/rounds:
+    post:
+      operationId: createRound
+      tags: [rounds]
+      summary: Start a new round (host only)
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoundBody"
+      responses:
+        "201":
+          description: Round created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Round"
+    get:
+      operationId: getRoomRounds
+      tags: [rounds]
+      summary: Get all rounds for a room
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of rounds
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Round"
+
+  /rooms/{code}/rounds/current:
+    get:
+      operationId: getCurrentRound
+      tags: [rounds]
+      summary: Get the current active round
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Current round with submissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoundWithSubmissions"
+        "404":
+          description: No active round
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rooms/{code}/rounds/{roundId}/close:
+    post:
+      operationId: closeRound
+      tags: [rounds]
+      summary: Close submissions for a round (host only)
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HostActionBody"
+      responses:
+        "200":
+          description: Round closed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Round"
+
+  /rooms/{code}/rounds/{roundId}/judge:
+    post:
+      operationId: judgeRound
+      tags: [rounds]
+      summary: Trigger AI judgment for a round (host only)
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HostActionBody"
+      responses:
+        "200":
+          description: AI judgment results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JudgmentResult"
+
+  /rooms/{code}/rounds/{roundId}/submissions:
+    post:
+      operationId: submitPrompt
+      tags: [submissions]
+      summary: Submit a prompt for a round
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitPromptBody"
+      responses:
+        "201":
+          description: Prompt submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+        "409":
+          description: Already submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      operationId: getRoundSubmissions
+      tags: [submissions]
+      summary: Get all submissions for a round
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: roundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of submissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Submission"
+
+  /rooms/{code}/leaderboard:
+    get:
+      operationId: getLeaderboard
+      tags: [leaderboard]
+      summary: Get the full leaderboard for a room
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Leaderboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Leaderboard"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +371,283 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    Room:
+      type: object
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+        hostName:
+          type: string
+        status:
+          type: string
+          enum: [waiting, active, finished]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - code
+        - hostName
+        - status
+        - createdAt
+
+    RoomWithDetails:
+      type: object
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+        hostName:
+          type: string
+        status:
+          type: string
+          enum: [waiting, active, finished]
+        createdAt:
+          type: string
+          format: date-time
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/Player"
+        currentRound:
+          $ref: "#/components/schemas/RoundWithSubmissions"
+      required:
+        - id
+        - code
+        - hostName
+        - status
+        - createdAt
+        - players
+
+    Player:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        roomId:
+          type: integer
+        totalScore:
+          type: integer
+        joinedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - roomId
+        - totalScore
+        - joinedAt
+
+    Round:
+      type: object
+      properties:
+        id:
+          type: integer
+        roomId:
+          type: integer
+        roundNumber:
+          type: integer
+        category:
+          type: string
+        prompt:
+          type: string
+        status:
+          type: string
+          enum: [open, closed, judged]
+        timeLimit:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - roomId
+        - roundNumber
+        - category
+        - prompt
+        - status
+        - timeLimit
+        - createdAt
+
+    RoundWithSubmissions:
+      type: object
+      properties:
+        id:
+          type: integer
+        roomId:
+          type: integer
+        roundNumber:
+          type: integer
+        category:
+          type: string
+        prompt:
+          type: string
+        status:
+          type: string
+          enum: [open, closed, judged]
+        timeLimit:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        submissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Submission"
+      required:
+        - id
+        - roomId
+        - roundNumber
+        - category
+        - prompt
+        - status
+        - timeLimit
+        - createdAt
+        - submissions
+
+    Submission:
+      type: object
+      properties:
+        id:
+          type: integer
+        roundId:
+          type: integer
+        playerId:
+          type: integer
+        playerName:
+          type: string
+        promptText:
+          type: string
+        score:
+          type: integer
+          nullable: true
+        feedback:
+          type: string
+          nullable: true
+        rank:
+          type: integer
+          nullable: true
+        submittedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - roundId
+        - playerId
+        - playerName
+        - promptText
+        - submittedAt
+
+    JudgmentResult:
+      type: object
+      properties:
+        roundId:
+          type: integer
+        submissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Submission"
+        summary:
+          type: string
+      required:
+        - roundId
+        - submissions
+        - summary
+
+    Leaderboard:
+      type: object
+      properties:
+        roomCode:
+          type: string
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeaderboardEntry"
+      required:
+        - roomCode
+        - players
+
+    LeaderboardEntry:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        playerName:
+          type: string
+        totalScore:
+          type: integer
+        roundsWon:
+          type: integer
+        rank:
+          type: integer
+      required:
+        - playerId
+        - playerName
+        - totalScore
+        - roundsWon
+        - rank
+
+    CreateRoomBody:
+      type: object
+      properties:
+        hostName:
+          type: string
+      required:
+        - hostName
+
+    JoinRoomBody:
+      type: object
+      properties:
+        playerName:
+          type: string
+      required:
+        - playerName
+
+    CreateRoundBody:
+      type: object
+      properties:
+        hostName:
+          type: string
+        category:
+          type: string
+        prompt:
+          type: string
+        timeLimit:
+          type: integer
+          default: 120
+      required:
+        - hostName
+        - category
+        - prompt
+
+    SubmitPromptBody:
+      type: object
+      properties:
+        playerId:
+          type: integer
+        promptText:
+          type: string
+      required:
+        - playerId
+        - promptText
+
+    HostActionBody:
+      type: object
+      properties:
+        hostName:
+          type: string
+      required:
+        - hostName
