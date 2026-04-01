@@ -56,10 +56,23 @@ router.post("/rooms/:code/rounds/:roundId/submissions", async (req, res): Promis
     return;
   }
 
-  const [submission] = await db
-    .insert(submissionsTable)
-    .values({ roundId, playerId, promptText })
-    .returning();
+  let submission;
+  try {
+    [submission] = await db
+      .insert(submissionsTable)
+      .values({ roundId, playerId, promptText })
+      .returning();
+  } catch (err: unknown) {
+    // Unique constraint violation — player already submitted (race condition)
+    if (
+      typeof err === "object" && err !== null &&
+      "code" in err && (err as { code: string }).code === "23505"
+    ) {
+      res.status(409).json({ error: "You have already submitted for this round" });
+      return;
+    }
+    throw err;
+  }
 
   res.status(201).json({
     id: submission.id,
