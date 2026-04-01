@@ -217,14 +217,21 @@ router.post("/rooms/:code/rounds/:roundId/judge", async (req, res): Promise<void
     return;
   }
 
-  const submissionsText = submissionRows
-    .map((s, i) => `Submission ${i + 1} by ${s.playerName}:\n"${s.promptText}"`)
-    .join("\n\n");
+  const BATCH_SIZE = 15;
 
-  const aiPrompt = `You are an expert prompt engineer judging a prompt engineering competition.
+  const buildJudgePrompt = (
+    batch: typeof submissionRows,
+    category: string,
+    challenge: string
+  ) => {
+    const submissionsText = batch
+      .map((s, i) => `Submission ${i + 1} by ${s.playerName}:\n"${s.promptText}"`)
+      .join("\n\n");
 
-The category/persona for this round is: "${round.category}"
-The challenge task is: "${round.prompt}"
+    return `You are an expert prompt engineer judging a prompt engineering competition.
+
+The category/persona for this round is: "${category}"
+The challenge task is: "${challenge}"
 
 Here are the participant submissions:
 
@@ -232,7 +239,7 @@ ${submissionsText}
 
 JUDGING RULES — apply strictly in this order:
 
-1. RELEVANCE CHECK (non-negotiable): Does the submission actually address the category "${round.category}" AND the task "${round.prompt}"? If a submission is off-topic, unrelated, nonsensical, or clearly ignores the category/task, assign a score of 0–15 and explain why it missed the mark. Do not reward off-topic submissions just because they are well-written.
+1. RELEVANCE CHECK (non-negotiable): Does the submission actually address the category "${category}" AND the task "${challenge}"? If a submission is off-topic, unrelated, nonsensical, or clearly ignores the category/task, assign a score of 0–15 and explain why it missed the mark. Do not reward off-topic submissions just because they are well-written.
 
 2. QUALITY SCORING (for on-topic submissions): Score 0–100 based on:
    - Relevance & adherence to the category and task (30 pts)
@@ -240,89 +247,82 @@ JUDGING RULES — apply strictly in this order:
    - Creativity and originality (20 pts)
    - Prompt engineering technique: role-setting, context, output format, constraints (30 pts)
 
-3. RANKING: Rank all submissions 1 = best. Off-topic submissions always rank below on-topic ones.
+3. FEEDBACK: 1–2 sentences. If off-topic, clearly state it. If on-topic, be specific about what worked and what could improve.
 
-4. FEEDBACK: 1–2 sentences. If off-topic, clearly state it. If on-topic, be specific about what worked and what could improve.
-
-Respond with ONLY a valid JSON array in this exact format (no markdown, no explanation outside the array):
+Respond with ONLY a valid JSON array (no markdown, no text outside the array):
 [
   {
     "playerName": "exact name from submission",
     "score": 85,
-    "feedback": "Brief feedback here",
-    "rank": 1
+    "feedback": "Brief feedback here"
   }
 ]
 
 Be strict and fair. Differentiate scores meaningfully. Never give a high score to an irrelevant submission.`;
+  };
 
-  const completion = await openai.chat.completions.create({
-    model: "gpt-5-mini",
-    max_completion_tokens: 2000,
-    messages: [{ role: "user", content: aiPrompt }],
-  });
+  type RawJudgment = { playerName: string; score: number; feedback: string };
 
-  const responseText = completion.choices[0]?.message?.content ?? "[]";
-
-  let judgments: Array<{
-    playerName: string;
-    score: number;
-    feedback: string;
-    rank: number;
-  }> = [];
-
-  try {
-    const jsonMatch = responseText.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      judgments = JSON.parse(jsonMatch[0]);
-    }
-  } catch {
-    req.log.error({ responseText }, "Failed to parse AI judgment response");
-    res.status(500).json({ error: "Failed to parse AI judgment" });
-    return;
+  const chunks: (typeof submissionRows)[] = [];
+  for (let i = 0; i < submissionRows.length; i += BATCH_SIZE) {
+    chunks.push(submissionRows.slice(i, i + BATCH_SIZE));
   }
 
-  for (const submission of submissionRows) {
-    const judgment = judgments.find(
-      (j) => j.playerName === submission.playerName
-    );
-    if (judgment) {
-      await db
-        .update(submissionsTable)
-        .set({
-          score: judgment.score,
-          feedback: judgment.feedback,
-          rank: judgment.rank,
-        })
-        .where(eq(submissionsTable.id, submission.id));
+  const batchResults = await Promise.all(
+    chunks.map(async (batch) => {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-5-mini",
+        max_completion_tokens: 1500,
+        messages: [{ role: "user", content: buildJudgePrompt(batch, round.category, round.prompt) }],
+      });
+      const text = completion.choices[0]?.message?.content ?? "[]";
+      try {
+        const match = text.match(/\[[\s\S]*\]/);
+        if (match) return JSON.parse(match[0]) as RawJudgment[];
+      } catch {
+        req.log.error({ text }, "Failed to parse batch AI judgment");
+      }
+      return [] as RawJudgment[];
+    })
+  );
 
-      await db
-        .update(playersTable)
-        .set({
-          totalScore: db.$count(submissionsTable, eq(submissionsTable.playerId, submission.playerId)),
-        })
-        .where(eq(playersTable.id, submission.playerId));
-    }
-  }
+  const rawJudgments: RawJudgment[] = batchResults.flat();
 
-  const allPlayerScores: Record<number, number> = {};
+  const sortedByScore = [...rawJudgments].sort((a, b) => b.score - a.score);
+  const judgments = sortedByScore.map((j, i) => ({ ...j, rank: i + 1 }));
+
+  await Promise.all(
+    submissionRows.map(async (submission) => {
+      const judgment = judgments.find((j) => j.playerName === submission.playerName);
+      if (judgment) {
+        await db
+          .update(submissionsTable)
+          .set({ score: judgment.score, feedback: judgment.feedback, rank: judgment.rank })
+          .where(eq(submissionsTable.id, submission.id));
+      }
+    })
+  );
+
+  const scoreByPlayer: Record<number, number> = {};
   for (const submission of submissionRows) {
     const judgment = judgments.find((j) => j.playerName === submission.playerName);
     if (judgment) {
-      allPlayerScores[submission.playerId] = (allPlayerScores[submission.playerId] ?? 0) + judgment.score;
+      scoreByPlayer[submission.playerId] = (scoreByPlayer[submission.playerId] ?? 0) + judgment.score;
     }
   }
 
-  for (const [playerIdStr, addedScore] of Object.entries(allPlayerScores)) {
-    const pId = parseInt(playerIdStr, 10);
-    const [currentPlayer] = await db.select().from(playersTable).where(eq(playersTable.id, pId));
-    if (currentPlayer) {
-      await db
-        .update(playersTable)
-        .set({ totalScore: currentPlayer.totalScore + addedScore })
-        .where(eq(playersTable.id, pId));
-    }
-  }
+  await Promise.all(
+    Object.entries(scoreByPlayer).map(async ([playerIdStr, addedScore]) => {
+      const pId = parseInt(playerIdStr, 10);
+      const [current] = await db.select().from(playersTable).where(eq(playersTable.id, pId));
+      if (current) {
+        await db
+          .update(playersTable)
+          .set({ totalScore: current.totalScore + addedScore })
+          .where(eq(playersTable.id, pId));
+      }
+    })
+  );
 
   await db
     .update(roundsTable)
