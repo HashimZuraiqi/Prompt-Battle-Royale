@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export function useLocalStorage<T>(key: string, initialValue: T) {
   const [storedValue, setStoredValue] = useState<T>(() => {
@@ -29,28 +29,37 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
 
 export function useCountdown(timeLimit: number, createdAt: string, onExpire?: () => void) {
   const [timeLeft, setTimeLeft] = useState(timeLimit);
+  const onExpireRef = useRef(onExpire);
+
+  useEffect(() => {
+    onExpireRef.current = onExpire;
+  });
 
   useEffect(() => {
     if (!createdAt || timeLimit <= 0) return;
 
     const start = new Date(createdAt).getTime();
     const end = start + timeLimit * 1000;
+    let fired = false;
 
-    const updateTimer = () => {
-      const now = new Date().getTime();
+    const interval = setInterval(() => {
+      const now = Date.now();
       const remain = Math.max(0, Math.ceil((end - now) / 1000));
       setTimeLeft(remain);
-      
-      if (remain <= 0 && onExpire) {
-        onExpire();
-      }
-    };
 
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
+      if (remain <= 0 && !fired) {
+        fired = true;
+        clearInterval(interval);
+        onExpireRef.current?.();
+      }
+    }, 1000);
+
+    const now = Date.now();
+    const remain = Math.max(0, Math.ceil((end - now) / 1000));
+    setTimeLeft(remain);
 
     return () => clearInterval(interval);
-  }, [timeLimit, createdAt, onExpire]);
+  }, [timeLimit, createdAt]);
 
   return timeLeft;
 }

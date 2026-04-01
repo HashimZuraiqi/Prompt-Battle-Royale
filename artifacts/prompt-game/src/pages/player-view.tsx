@@ -1,5 +1,5 @@
 import { useParams, useLocation } from "wouter";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   useGetRoom,
   useGetCurrentRound,
@@ -19,6 +19,7 @@ export default function PlayerView() {
 
   const [promptText, setPromptText] = useState("");
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const hasSubmittedRef = useRef(false);
 
   const { data: room } = useGetRoom(safeCode, {
     query: { refetchInterval: 2000, enabled: !!safeCode }
@@ -30,38 +31,54 @@ export default function PlayerView() {
 
   const submitPrompt = useSubmitPrompt();
 
+  // Sync hasSubmitted FROM the server — but never go back to false once true this round
   useEffect(() => {
     if (currentRound?.submissions) {
       const sub = currentRound.submissions.find(s => s.playerId === playerId);
       if (sub) {
+        hasSubmittedRef.current = true;
         setHasSubmitted(true);
         if (sub.promptText) setPromptText(sub.promptText);
-      } else {
-        setHasSubmitted(false);
       }
+      // Never reset to false here — the player submitted, that's final until a new round
     }
   }, [currentRound, playerId]);
 
+  // Reset state only when a new round starts
   useEffect(() => {
-    if (currentRound?.status === "open" && !hasSubmitted) {
-      setPromptText("");
-    }
-  }, [currentRound?.id, currentRound?.status]);
+    hasSubmittedRef.current = false;
+    setHasSubmitted(false);
+    setPromptText("");
+  }, [currentRound?.id]);
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!promptText.trim() || hasSubmitted || currentRound?.status !== "open") return;
+    if (!promptText.trim() || hasSubmittedRef.current || currentRound?.status !== "open") return;
+    hasSubmittedRef.current = true; // Immediately lock to prevent double-fire
     submitPrompt.mutate(
       { code: safeCode, roundId: currentRound!.id, data: { playerId, promptText } },
-      { onSuccess: () => setHasSubmitted(true) }
+      {
+        onSuccess: () => setHasSubmitted(true),
+        onError: () => { hasSubmittedRef.current = false; }, // Unlock on failure
+      }
     );
   };
+
+  const currentRoundRef = useRef(currentRound);
+  useEffect(() => { currentRoundRef.current = currentRound; }, [currentRound]);
+
+  const promptTextRef = useRef(promptText);
+  useEffect(() => { promptTextRef.current = promptText; }, [promptText]);
 
   const timeLeft = useCountdown(
     currentRound?.timeLimit || 60,
     currentRound?.createdAt || "",
     () => {
-      if (!hasSubmitted && currentRound?.status === "open" && promptText.trim()) {
+      if (
+        !hasSubmittedRef.current &&
+        currentRoundRef.current?.status === "open" &&
+        promptTextRef.current.trim()
+      ) {
         handleSubmit();
       }
     }
