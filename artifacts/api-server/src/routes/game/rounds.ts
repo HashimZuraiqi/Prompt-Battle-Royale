@@ -223,19 +223,28 @@ router.post("/rooms/:code/rounds/:roundId/judge", async (req, res): Promise<void
 
   const aiPrompt = `You are an expert prompt engineer judging a prompt engineering competition.
 
-The task/category was: "${round.category}"
-The challenge prompt was: "${round.prompt}"
+The category/persona for this round is: "${round.category}"
+The challenge task is: "${round.prompt}"
 
 Here are the participant submissions:
 
 ${submissionsText}
 
-Please evaluate each submission and assign:
-1. A score from 0-100 based on: clarity, specificity, creativity, effectiveness for the given task, and prompt engineering best practices (role assignment, context, output format, constraints).
-2. Brief feedback (1-2 sentences) explaining the score.
-3. A ranking (1 = best).
+JUDGING RULES — apply strictly in this order:
 
-Respond with ONLY a valid JSON array in this exact format:
+1. RELEVANCE CHECK (non-negotiable): Does the submission actually address the category "${round.category}" AND the task "${round.prompt}"? If a submission is off-topic, unrelated, nonsensical, or clearly ignores the category/task, assign a score of 0–15 and explain why it missed the mark. Do not reward off-topic submissions just because they are well-written.
+
+2. QUALITY SCORING (for on-topic submissions): Score 0–100 based on:
+   - Relevance & adherence to the category and task (30 pts)
+   - Clarity and specificity (20 pts)
+   - Creativity and originality (20 pts)
+   - Prompt engineering technique: role-setting, context, output format, constraints (30 pts)
+
+3. RANKING: Rank all submissions 1 = best. Off-topic submissions always rank below on-topic ones.
+
+4. FEEDBACK: 1–2 sentences. If off-topic, clearly state it. If on-topic, be specific about what worked and what could improve.
+
+Respond with ONLY a valid JSON array in this exact format (no markdown, no explanation outside the array):
 [
   {
     "playerName": "exact name from submission",
@@ -245,7 +254,7 @@ Respond with ONLY a valid JSON array in this exact format:
   }
 ]
 
-Be fair but critical. Differentiate scores meaningfully. The best prompt should score 85-100, average prompts 50-70, poor prompts below 50.`;
+Be strict and fair. Differentiate scores meaningfully. Never give a high score to an irrelevant submission.`;
 
   const completion = await openai.chat.completions.create({
     model: "gpt-5-mini",
