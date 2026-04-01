@@ -35,7 +35,7 @@ export default function Join() {
         onError: () => {
           toast({
             title: "Error joining room",
-            description: "Check the code and try again.",
+            description: "Check the 6-character code and try again.",
             variant: "destructive",
           });
         }
@@ -44,59 +44,64 @@ export default function Join() {
   };
 
   return (
-    <div className="min-h-[100dvh] w-full flex items-center justify-center p-6 relative">
-      <Link href="/" className="absolute top-6 left-6 btn-neo-white px-4 py-2 flex items-center gap-2 text-sm">
+    <div className="min-h-[100dvh] w-full flex flex-col items-center justify-center p-4 relative">
+      <Link href="/" className="absolute top-4 left-4 btn-neo-white px-3 py-2 flex items-center gap-2 text-sm font-bold z-10">
         <ArrowLeft className="w-4 h-4" /> Back
       </Link>
 
       <motion.div 
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="card-neo w-full max-w-md p-8 bg-white"
+        className="card-neo w-full max-w-sm p-6 bg-white"
       >
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-black uppercase mb-2">Join Game</h1>
-          <p className="font-medium text-muted-foreground">Enter room code to play</p>
+        <div className="text-center mb-6">
+          <h1 className="text-3xl font-black uppercase mb-1">Join Game</h1>
+          <p className="font-medium text-muted-foreground text-sm">Enter the 6-character room code</p>
         </div>
 
-        <form onSubmit={handleJoin} className="space-y-6">
+        <form onSubmit={handleJoin} className="space-y-5">
           <div className="space-y-2">
-            <label className="block text-xl font-bold uppercase tracking-wider">
+            <label className="block text-base font-bold uppercase tracking-wider">
               Room Code
             </label>
             <input
               type="text"
               value={code}
-              onChange={(e) => setCode(e.target.value)}
-              className="w-full input-neo text-3xl p-4 font-black text-center uppercase tracking-widest"
-              placeholder="ABCD"
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              className="w-full input-neo text-2xl p-4 font-black text-center uppercase tracking-widest"
+              placeholder="ABC123"
               required
-              maxLength={4}
+              maxLength={6}
+              autoCapitalize="characters"
+              autoComplete="off"
+              data-testid="input-room-code"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="block text-xl font-bold uppercase tracking-wider">
+            <label className="block text-base font-bold uppercase tracking-wider">
               Nickname
             </label>
             <input
               type="text"
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
-              className="w-full input-neo text-2xl p-4 font-bold"
+              className="w-full input-neo text-xl p-4 font-bold"
               placeholder="CoolPlayer99"
               required
               maxLength={15}
+              data-testid="input-player-name"
             />
           </div>
 
           <button
             type="submit"
-            disabled={joinRoom.isPending || !code.trim() || !playerName.trim()}
-            className="w-full btn-neo-secondary text-2xl py-4 flex justify-center items-center gap-2"
+            disabled={joinRoom.isPending || code.trim().length !== 6 || !playerName.trim()}
+            className="w-full btn-neo-secondary text-xl py-4 flex justify-center items-center gap-2 mt-2"
+            data-testid="button-join"
           >
             {joinRoom.isPending ? (
-              <Loader2 className="animate-spin w-8 h-8" />
+              <Loader2 className="animate-spin w-6 h-6" />
             ) : (
               "Join Room"
             )}

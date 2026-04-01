@@ -29,44 +29,46 @@ export default function HostSetup() {
   };
 
   return (
-    <div className="min-h-[100dvh] w-full flex items-center justify-center p-6 relative">
-      <Link href="/" className="absolute top-6 left-6 btn-neo-white px-4 py-2 flex items-center gap-2 text-sm">
+    <div className="min-h-[100dvh] w-full flex flex-col items-center justify-center p-4 relative">
+      <Link href="/" className="absolute top-4 left-4 btn-neo-white px-3 py-2 flex items-center gap-2 text-sm font-bold z-10">
         <ArrowLeft className="w-4 h-4" /> Back
       </Link>
 
       <motion.div 
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="card-neo w-full max-w-md p-8 bg-white"
+        className="card-neo w-full max-w-sm p-6 bg-white"
       >
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-black uppercase mb-2">Host Game</h1>
-          <p className="font-medium text-muted-foreground">Create a room and invite players</p>
+        <div className="text-center mb-6">
+          <h1 className="text-3xl font-black uppercase mb-1">Host Game</h1>
+          <p className="font-medium text-muted-foreground text-sm">Create a room and invite players</p>
         </div>
 
-        <form onSubmit={handleCreate} className="space-y-6">
+        <form onSubmit={handleCreate} className="space-y-5">
           <div className="space-y-2">
-            <label className="block text-xl font-bold uppercase tracking-wider">
-              Host Name
+            <label className="block text-base font-bold uppercase tracking-wider">
+              Your Name
             </label>
             <input
               type="text"
               value={hostName}
               onChange={(e) => setHostName(e.target.value)}
-              className="w-full input-neo text-2xl p-4 font-bold"
+              className="w-full input-neo text-xl p-4 font-bold"
               placeholder="e.g. GameMaster"
               required
               maxLength={20}
+              data-testid="input-host-name"
             />
           </div>
 
           <button
             type="submit"
             disabled={createRoom.isPending || !hostName.trim()}
-            className="w-full btn-neo text-2xl py-4 flex justify-center items-center gap-2"
+            className="w-full btn-neo text-xl py-4 flex justify-center items-center gap-2 mt-2"
+            data-testid="button-create-room"
           >
             {createRoom.isPending ? (
-              <Loader2 className="animate-spin w-8 h-8" />
+              <Loader2 className="animate-spin w-6 h-6" />
             ) : (
               "Create Room"
             )}
