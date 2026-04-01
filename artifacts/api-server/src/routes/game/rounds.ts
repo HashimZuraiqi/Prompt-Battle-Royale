@@ -17,32 +17,37 @@ router.post("/rooms/:code/generate-challenge", async (req, res): Promise<void> =
     ? `The session theme is: "${theme.trim()}". Generate a challenge related to this theme.`
     : `Generate a creative and interesting prompt engineering challenge. It can be about coding, writing, creative tasks, or any domain.`;
 
-  const systemMsg = `You are a creative game designer for a prompt engineering competition called Prompt Battle. Your job is to create fun, specific, and clear round challenges.
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 300,
+      messages: [
+        {
+          role: "system",
+          content: `You are a creative game designer for a prompt engineering competition called Prompt Battle. Your job is to create fun, specific, and clear round challenges.
 
 A round has two parts:
 1. "category" — a short label (2–5 words) that names the TYPE of task (e.g. "Build a Web App", "Write a Poem", "Design a Persona", "Explain Like I'm 5")
 2. "task" — a specific, concrete challenge description (1–3 sentences) that tells contestants exactly what their prompt must produce. Be specific — name exact features, styles, audiences, or constraints. Avoid vague tasks.
 
-${themeClause}
+Respond with ONLY a JSON object (no markdown, no code blocks):
+{ "category": "...", "task": "..." }`,
+        },
+        {
+          role: "user",
+          content: themeClause,
+        },
+      ],
+    });
 
-Respond with ONLY a JSON object (no markdown):
-{ "category": "...", "task": "..." }`;
-
-  const completion = await openai.chat.completions.create({
-    model: "gpt-5-mini",
-    max_completion_tokens: 300,
-    messages: [{ role: "user", content: systemMsg }],
-  });
-
-  const text = completion.choices[0]?.message?.content ?? "{}";
-  try {
+    const text = completion.choices[0]?.message?.content || "{}";
     const match = text.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("No JSON found");
+    if (!match) throw new Error(`No JSON in response: ${text}`);
     const parsed = JSON.parse(match[0]) as { category?: string; task?: string };
-    if (!parsed.category || !parsed.task) throw new Error("Missing fields");
+    if (!parsed.category || !parsed.task) throw new Error(`Missing fields in: ${text}`);
     res.json({ category: parsed.category, task: parsed.task });
-  } catch {
-    req.log.error({ text }, "Failed to parse generated challenge");
+  } catch (err) {
+    req.log.error({ err }, "Failed to generate challenge");
     res.status(500).json({ error: "Failed to generate challenge" });
   }
 });
@@ -338,8 +343,8 @@ Respond with ONLY a JSON array (no markdown):
   const relevanceResults = await Promise.all(
     relevanceChunks.map(async (batch) => {
       const completion = await openai.chat.completions.create({
-        model: "gpt-5-mini",
-        max_completion_tokens: 800,
+        model: "gpt-4o-mini",
+        max_tokens: 800,
         messages: [{ role: "user", content: buildRelevancePrompt(batch, round.category, round.prompt) }],
       });
       const text = completion.choices[0]?.message?.content ?? "[]";
@@ -371,8 +376,8 @@ Respond with ONLY a JSON array (no markdown):
   const qualityResults = await Promise.all(
     qualityChunks.map(async (batch) => {
       const completion = await openai.chat.completions.create({
-        model: "gpt-5-mini",
-        max_completion_tokens: 1200,
+        model: "gpt-4o-mini",
+        max_tokens: 1200,
         messages: [{ role: "user", content: buildQualityPrompt(batch, round.category, round.prompt) }],
       });
       const text = completion.choices[0]?.message?.content ?? "[]";
