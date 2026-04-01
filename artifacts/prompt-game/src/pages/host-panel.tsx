@@ -69,14 +69,6 @@ export default function HostPanel() {
     }
   };
 
-  if (!room) {
-    return (
-      <div className="min-h-[100dvh] flex items-center justify-center">
-        <Loader2 className="w-12 h-12 animate-spin text-foreground" />
-      </div>
-    );
-  }
-
   const handleStartGame = () => {
     startRoom.mutate({ code: safeCode, data: { hostName } });
   };
@@ -130,6 +122,14 @@ export default function HostPanel() {
   const timerColor = timeLeft <= 10 ? "bg-destructive" : timeLeft <= 20 ? "bg-yellow-400" : "bg-primary";
 
   const submissionCount = currentRound?.submissions?.length || 0;
+
+  if (!room) {
+    return (
+      <div className="min-h-[100dvh] flex items-center justify-center">
+        <Loader2 className="w-12 h-12 animate-spin text-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[100dvh] bg-white pb-8">
