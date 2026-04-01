@@ -1,4 +1,4 @@
-import { useParams, useLocation } from "wouter";
+import { useParams } from "wouter";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -14,10 +14,9 @@ import {
 } from "@workspace/api-client-react";
 import { useLocalStorage } from "@/lib/hooks";
 import { motion, AnimatePresence } from "framer-motion";
-import { Users, Loader2, Play, Trophy, Zap, ShieldAlert, ChevronDown, ChevronUp } from "lucide-react";
+import { Users, Loader2, Play, Trophy, Zap, ShieldAlert, ChevronDown, ChevronUp, Sparkles, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
-import { useState as useToggle } from "react";
 
 export default function HostPanel() {
   const { code } = useParams();
@@ -48,6 +47,27 @@ export default function HostPanel() {
   const [category, setCategory] = useState("");
   const [promptText, setPromptText] = useState("");
   const [timeLimit, setTimeLimit] = useState<number>(60);
+  const [theme, setTheme] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleGenerateChallenge = async () => {
+    setIsGenerating(true);
+    try {
+      const res = await fetch(`/api/rooms/${safeCode}/generate-challenge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hostName, theme }),
+      });
+      if (!res.ok) throw new Error("Generation failed");
+      const data = await res.json() as { category: string; task: string };
+      setCategory(data.category);
+      setPromptText(data.task);
+    } catch {
+      toast({ title: "Failed to generate challenge", variant: "destructive" });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   if (!room) {
     return (
@@ -197,16 +217,57 @@ export default function HostPanel() {
           <>
             {/* No round or last round judged — show create round form */}
             {(!currentRound || currentRound.status === "judged") && (
-              <div className="card-neo p-5 bg-white">
-                <h3 className="text-xl font-black uppercase mb-4 flex items-center gap-2">
+              <div className="card-neo p-5 bg-white space-y-4">
+                <h3 className="text-xl font-black uppercase flex items-center gap-2">
                   <Zap className="text-primary fill-primary w-5 h-5" /> New Round
                 </h3>
+
+                {/* AI Generation Panel */}
+                <div className="bg-muted border-2 border-foreground p-4 space-y-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-black uppercase">AI Challenge Generator</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      className="input-neo flex-1 p-2 text-sm"
+                      placeholder="Optional theme (e.g. web dev, poetry, cooking...)"
+                      value={theme}
+                      onChange={(e) => setTheme(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleGenerateChallenge(); } }}
+                      data-testid="input-theme"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleGenerateChallenge}
+                      disabled={isGenerating}
+                      className="btn-neo px-4 py-2 text-sm font-black flex items-center gap-2 shrink-0"
+                      data-testid="button-generate"
+                    >
+                      {isGenerating
+                        ? <Loader2 className="animate-spin w-4 h-4" />
+                        : <><RefreshCw className="w-4 h-4" /> Generate</>
+                      }
+                    </button>
+                  </div>
+                  {isGenerating && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-muted-foreground font-medium italic">
+                      AI is crafting a challenge...
+                    </motion.div>
+                  )}
+                  {(category || promptText) && !isGenerating && (
+                    <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="text-xs text-primary font-bold flex items-center gap-1">
+                      <Sparkles className="w-3 h-3" /> Fields filled — edit them freely below
+                    </motion.div>
+                  )}
+                </div>
+
                 <form onSubmit={handleStartRound} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-bold uppercase mb-1">Category / Persona</label>
+                    <label className="block text-sm font-bold uppercase mb-1">Category / Type</label>
                     <input
                       className="input-neo w-full p-3 text-base"
-                      placeholder="e.g. 1920s Detective, Shakespeare"
+                      placeholder="e.g. Build a Web App, Write a Poem"
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
                       required
@@ -217,7 +278,7 @@ export default function HostPanel() {
                     <label className="block text-sm font-bold uppercase mb-1">Task / Challenge</label>
                     <textarea
                       className="input-neo w-full p-3 text-base min-h-[100px] resize-none"
-                      placeholder="e.g. Write a smartphone review as this character."
+                      placeholder="e.g. Build a student portfolio website with an About section, Projects grid, and a Contact form."
                       value={promptText}
                       onChange={(e) => setPromptText(e.target.value)}
                       required
@@ -225,7 +286,7 @@ export default function HostPanel() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-bold uppercase mb-1">Time Limit (seconds)</label>
+                    <label className="block text-sm font-bold uppercase mb-1">Time Limit</label>
                     <div className="flex gap-2">
                       {[30, 60, 90, 120].map(t => (
                         <button

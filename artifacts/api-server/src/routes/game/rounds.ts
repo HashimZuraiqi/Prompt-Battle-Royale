@@ -5,6 +5,48 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 
 const router: IRouter = Router();
 
+router.post("/rooms/:code/generate-challenge", async (req, res): Promise<void> => {
+  const { code } = req.params;
+  const { hostName, theme } = req.body;
+
+  const [room] = await db.select().from(roomsTable).where(eq(roomsTable.code, code));
+  if (!room) { res.status(404).json({ error: "Room not found" }); return; }
+  if (room.hostName !== hostName) { res.status(403).json({ error: "Only the host can generate challenges" }); return; }
+
+  const themeClause = theme?.trim()
+    ? `The session theme is: "${theme.trim()}". Generate a challenge related to this theme.`
+    : `Generate a creative and interesting prompt engineering challenge. It can be about coding, writing, creative tasks, or any domain.`;
+
+  const systemMsg = `You are a creative game designer for a prompt engineering competition called Prompt Battle. Your job is to create fun, specific, and clear round challenges.
+
+A round has two parts:
+1. "category" — a short label (2–5 words) that names the TYPE of task (e.g. "Build a Web App", "Write a Poem", "Design a Persona", "Explain Like I'm 5")
+2. "task" — a specific, concrete challenge description (1–3 sentences) that tells contestants exactly what their prompt must produce. Be specific — name exact features, styles, audiences, or constraints. Avoid vague tasks.
+
+${themeClause}
+
+Respond with ONLY a JSON object (no markdown):
+{ "category": "...", "task": "..." }`;
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-5-mini",
+    max_completion_tokens: 300,
+    messages: [{ role: "user", content: systemMsg }],
+  });
+
+  const text = completion.choices[0]?.message?.content ?? "{}";
+  try {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("No JSON found");
+    const parsed = JSON.parse(match[0]) as { category?: string; task?: string };
+    if (!parsed.category || !parsed.task) throw new Error("Missing fields");
+    res.json({ category: parsed.category, task: parsed.task });
+  } catch {
+    req.log.error({ text }, "Failed to parse generated challenge");
+    res.status(500).json({ error: "Failed to generate challenge" });
+  }
+});
+
 router.get("/rooms/:code/rounds", async (req, res): Promise<void> => {
   const { code } = req.params;
   const [room] = await db.select().from(roomsTable).where(eq(roomsTable.code, code));
