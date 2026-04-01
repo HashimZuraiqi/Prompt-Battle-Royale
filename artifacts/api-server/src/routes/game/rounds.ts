@@ -24,11 +24,13 @@ router.post("/rooms/:code/generate-challenge", async (req, res): Promise<void> =
       messages: [
         {
           role: "system",
-          content: `You are a game designer for a prompt engineering competition. Create short, fun round challenges.
+          content: `You are a game designer for a vibe coding competition where players write AI prompts to build real software products.
+
+Every challenge must be a PRODUCT or FEATURE to build with code — something a developer would prompt an AI coding assistant (like Cursor or Replit) to build. Think: apps, tools, dashboards, components, landing pages, APIs, scripts.
 
 A round has two parts:
-1. "category" — 2–4 words naming the type of task (e.g. "Build a Web App", "Write a Poem", "Explain It Simply")
-2. "task" — ONE short sentence (max 15 words) describing exactly what to build or write. Be concrete and specific. No lists, no details, no extra context. Examples: "Build a portfolio app for a student.", "Write a breakup letter as a robot.", "Explain gravity to a 5-year-old."
+1. "category" — 2–4 words naming the product type (e.g. "Web App", "Landing Page", "Chrome Extension", "CLI Tool", "API Endpoint", "Dashboard")
+2. "task" — ONE short sentence (max 12 words) describing the exact product to build. Name the user and the core feature only. No tech stack, no implementation details. Examples: "Build a habit tracker app for university students.", "Create a landing page for a coffee subscription box.", "Make a Chrome extension that blocks distracting websites.", "Build a CLI tool that renames files in bulk.", "Create a dashboard showing real-time crypto prices."
 
 Respond with ONLY a JSON object (no markdown, no code blocks):
 { "category": "...", "task": "..." }`,
