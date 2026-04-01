@@ -228,37 +228,52 @@ router.post("/rooms/:code/rounds/:roundId/judge", async (req, res): Promise<void
       .map((s, i) => `Submission ${i + 1} by ${s.playerName}:\n"${s.promptText}"`)
       .join("\n\n");
 
-    return `You are an expert prompt engineer judging a prompt engineering competition.
+    return `You are a strict judge in a prompt engineering competition. Your job is to score each participant's submission based on how well it responds to the specific challenge.
 
-The category/persona for this round is: "${category}"
-The challenge task is: "${challenge}"
+CHALLENGE DETAILS:
+- Category / Persona: "${category}"
+- Task: "${challenge}"
 
-Here are the participant submissions:
-
+SUBMISSIONS TO JUDGE:
 ${submissionsText}
 
-JUDGING RULES — apply strictly in this order:
+---
+STEP 1 — RELEVANCE GATE (do this first for every submission, no exceptions):
 
-1. RELEVANCE CHECK (non-negotiable): Does the submission actually address the category "${category}" AND the task "${challenge}"? If a submission is off-topic, unrelated, nonsensical, or clearly ignores the category/task, assign a score of 0–15 and explain why it missed the mark. Do not reward off-topic submissions just because they are well-written.
+Read the challenge task carefully. Identify the SPECIFIC thing it is asking for (e.g., a portfolio website, a poem about the ocean, a recipe for pasta).
 
-2. QUALITY SCORING (for on-topic submissions): Score 0–100 based on:
-   - Relevance & adherence to the category and task (30 pts)
-   - Clarity and specificity (20 pts)
-   - Creativity and originality (20 pts)
-   - Prompt engineering technique: role-setting, context, output format, constraints (30 pts)
+For each submission, ask: "Does this submission directly address the exact topic/subject/output requested in the task?"
 
-3. FEEDBACK: 1–2 sentences. If off-topic, clearly state it. If on-topic, be specific about what worked and what could improve.
+Examples of OFF-TOPIC submissions that MUST score 0–10:
+- Challenge asks for a PORTFOLIO app → submission builds a TO-DO LIST app (different app entirely)
+- Challenge asks for a POEM → submission writes a recipe
+- Challenge asks for a HAIKU about rain → submission writes a haiku about fire
+- Challenge asks for a RESUME → submission generates a cover letter
 
+A submission is off-topic if it targets a DIFFERENT subject or output than what the challenge explicitly specifies, even if the prompt itself is very detailed, professional, and well-crafted. Quality does NOT excuse irrelevance.
+
+If a submission is off-topic: score it 0–10. Feedback must explicitly name what was asked vs what was submitted.
+
+---
+STEP 2 — QUALITY SCORING (only for on-topic submissions):
+
+Score 0–100 based on:
+- Relevance & direct adherence to the exact task (35 pts) — does it nail the specific subject?
+- Clarity and specificity (20 pts)
+- Creativity (15 pts)
+- Prompt engineering technique: role definition, context, output format, constraints (30 pts)
+
+---
 Respond with ONLY a valid JSON array (no markdown, no text outside the array):
 [
   {
     "playerName": "exact name from submission",
     "score": 85,
-    "feedback": "Brief feedback here"
+    "feedback": "Specific 1-2 sentence feedback"
   }
 ]
 
-Be strict and fair. Differentiate scores meaningfully. Never give a high score to an irrelevant submission.`;
+CRITICAL: A beautifully written prompt for the WRONG task scores 0–10. No exceptions.`;
   };
 
   type RawJudgment = { playerName: string; score: number; feedback: string };
