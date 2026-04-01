@@ -210,6 +210,27 @@ router.post("/rooms/:code/rounds/:roundId/close", async (req, res): Promise<void
     return;
   }
 
+  // Auto-submit empty entries for any player who didn't submit in time
+  const allPlayers = await db
+    .select()
+    .from(playersTable)
+    .where(eq(playersTable.roomId, room.id));
+
+  const existingSubmissions = await db
+    .select({ playerId: submissionsTable.playerId })
+    .from(submissionsTable)
+    .where(eq(submissionsTable.roundId, roundId));
+
+  const submittedIds = new Set(existingSubmissions.map(s => s.playerId));
+  const missing = allPlayers.filter(p => !submittedIds.has(p.id));
+
+  if (missing.length > 0) {
+    await db
+      .insert(submissionsTable)
+      .values(missing.map(p => ({ roundId, playerId: p.id, promptText: "" })))
+      .onConflictDoNothing();
+  }
+
   res.json({
     id: round.id,
     roomId: round.roomId,

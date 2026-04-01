@@ -12,9 +12,9 @@ import {
   getGetCurrentRoundQueryKey,
   getGetLeaderboardQueryKey
 } from "@workspace/api-client-react";
-import { useLocalStorage } from "@/lib/hooks";
+import { useLocalStorage, useCountdown } from "@/lib/hooks";
 import { motion, AnimatePresence } from "framer-motion";
-import { Users, Loader2, Play, Trophy, Zap, ShieldAlert, ChevronDown, ChevronUp, Sparkles, RefreshCw } from "lucide-react";
+import { Users, Loader2, Play, Trophy, Zap, ShieldAlert, ChevronDown, ChevronUp, Sparkles, RefreshCw, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 
@@ -115,6 +115,19 @@ export default function HostPanel() {
       }
     );
   };
+
+  const isRoundOpen = currentRound?.status === "open";
+  const timeLeft = useCountdown(
+    currentRound?.timeLimit || 60,
+    currentRound?.createdAt || "",
+    () => {
+      if (currentRound?.status === "open" && !closeRound.isPending) {
+        handleCloseRound();
+      }
+    }
+  );
+  const timerPercent = Math.min(100, (timeLeft / (currentRound?.timeLimit || 60)) * 100);
+  const timerColor = timeLeft <= 10 ? "bg-destructive" : timeLeft <= 20 ? "bg-yellow-400" : "bg-primary";
 
   const submissionCount = currentRound?.submissions?.length || 0;
 
@@ -323,10 +336,27 @@ export default function HostPanel() {
                       {currentRound.category}
                     </div>
                   </div>
-                  <div className={`text-lg font-black uppercase px-3 py-1 border-2 border-foreground ${currentRound.status === "open" ? "bg-primary text-primary-foreground animate-pulse" : "bg-muted"}`} data-testid="text-round-status">
-                    {currentRound.status}
-                  </div>
+                  {isRoundOpen ? (
+                    <div className={`flex items-center gap-2 font-black text-2xl px-3 py-1 border-2 border-foreground tabular-nums ${timeLeft <= 10 ? "bg-destructive text-white animate-pulse" : timeLeft <= 20 ? "bg-yellow-400 text-foreground" : "bg-primary text-primary-foreground"}`} data-testid="text-host-timer">
+                      <Clock className="w-5 h-5" />
+                      {timeLeft}s
+                    </div>
+                  ) : (
+                    <div className={`text-lg font-black uppercase px-3 py-1 border-2 border-foreground ${currentRound.status === "open" ? "bg-primary text-primary-foreground animate-pulse" : "bg-muted"}`} data-testid="text-round-status">
+                      {currentRound.status}
+                    </div>
+                  )}
                 </div>
+
+                {/* Timer progress bar */}
+                {isRoundOpen && (
+                  <div className="h-3 bg-muted border-2 border-foreground w-full -mt-1">
+                    <motion.div
+                      className={`h-full ${timerColor} transition-all duration-1000`}
+                      style={{ width: `${timerPercent}%` }}
+                    />
+                  </div>
+                )}
 
                 <div className="bg-muted p-4 border-l-4 border-primary text-base font-medium leading-snug">
                   {currentRound.prompt}
