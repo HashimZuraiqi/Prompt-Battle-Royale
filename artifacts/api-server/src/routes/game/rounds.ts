@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, and, desc } from "drizzle-orm";
 import { db, roomsTable, playersTable, roundsTable, submissionsTable } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { GDG_PSUT_FACTS } from "../../lib/gdgFacts";
 
 const router: IRouter = Router();
 
@@ -15,7 +16,7 @@ router.post("/rooms/:code/generate-challenge", async (req, res): Promise<void> =
 
   const themeClause = theme?.trim()
     ? `The session theme is: "${theme.trim()}". Generate a challenge related to this theme.`
-    : `Generate a creative and interesting prompt engineering challenge. It can be about coding, writing, creative tasks, or any domain.`;
+    : `Generate a fun challenge about GDG on Campus PSUT, student life, or tech.`;
 
   try {
     const completion = await openai.chat.completions.create({
@@ -24,13 +25,16 @@ router.post("/rooms/:code/generate-challenge", async (req, res): Promise<void> =
       messages: [
         {
           role: "system",
-          content: `You are a game designer for a vibe coding competition where players write AI prompts to build real software products.
+          content: `You are the game designer for the "Prompt Battle" at the GDG on Campus PSUT Info Session 2026. The audience is university students from every major, many of them freshmen. Players compete by writing the best AI prompt for a challenge; an AI judge scores the prompts.
 
-Every challenge must be a PRODUCT or FEATURE to build with code — something a developer would prompt an AI coding assistant (like Cursor or Replit) to build. Think: apps, tools, dashboards, components, landing pages, APIs, scripts.
+Challenges should be FUN, quick to understand on a projector, and doable in 60 seconds. Mix it up: GDG PSUT facts and events, campus life in Jordan, tech explained with silly analogies, creative writing, mini products to vibe-code, and real-life student tasks (CVs, study plans, emails).
+
+When the theme is about GDG PSUT, use ONLY facts from this sheet and weave concrete details (dates, places, numbers, track names) into the task so good prompts must include them:
+${GDG_PSUT_FACTS}
 
 A round has two parts:
-1. "category" — 2–4 words naming the product type (e.g. "Web App", "Landing Page", "Chrome Extension", "CLI Tool", "API Endpoint", "Dashboard")
-2. "task" — ONE short sentence (max 12 words) describing the exact product to build. Name the user and the core feature only. No tech stack, no implementation details. Examples: "Build a habit tracker app for university students.", "Create a landing page for a coffee subscription box.", "Make a Chrome extension that blocks distracting websites.", "Build a CLI tool that renames files in bulk.", "Create a dashboard showing real-time crypto prices."
+1. "category" — 1–3 words naming the challenge (e.g. "Hype Caption", "Track Matchmaker", "Excuse Generator", "Vibe Coding").
+2. "task" — ONE sentence (max 30 words) starting with "Get an AI to …" describing exactly what the player's prompt must make the AI produce. Examples: "Get an AI to write an Instagram caption for the Flutter Bootcamp: 3 sessions, Loay Shammout Auditorium, 24/10, 31/10 and 7/11.", "Get an AI to explain Docker containers using only shawarma-shop analogies.", "Get an AI to invent the most believable excuse for missing an 8 AM lecture."
 
 Respond with ONLY a JSON object (no markdown, no code blocks):
 { "category": "...", "task": "..." }`,
@@ -342,6 +346,9 @@ CHALLENGE:
 - Category / Persona: "${category}"
 - Task: "${challenge}"
 
+BACKGROUND (this game is played at the GDG on Campus PSUT Info Session). If the challenge involves GDG PSUT, reward prompts that include the correct details from this fact sheet and penalize invented or wrong facts:
+${GDG_PSUT_FACTS}
+
 SUBMISSIONS:
 ${submissionsText}
 
@@ -353,7 +360,7 @@ Score each submission 0–100 based on:
 
 Respond with ONLY a JSON array (no markdown):
 [
-  { "playerName": "exact name", "score": 85, "feedback": "1-2 sentence specific feedback" }
+  { "playerName": "exact name", "score": 85, "feedback": "1-2 sentence specific, encouraging feedback with one concrete tip" }
 ]`;
   };
 

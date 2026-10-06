@@ -71,6 +71,13 @@ All under `/api`:
 - `GET /rooms/:code/rounds/:roundId/submissions` — get submissions
 - `GET /rooms/:code/leaderboard` — full leaderboard
 
+## GDG PSUT Info Session edition
+
+Restyled to match the GDG on Campus PSUT Info Session 2026 deck (dark grain background, Google-color glows, glass cards, Poppins + DM Sans).
+- Challenge deck: `artifacts/prompt-game/src/lib/gdg-deck.ts` (GDG PSUT / Just for fun / General tracks). The host picks a card or hits "Surprise me"; played cards are tracked per room.
+- GDG fact sheet: `artifacts/api-server/src/lib/gdgFacts.ts` is given to the AI challenge generator and the quality judge, so GDG rounds reward accurate details.
+- Join links accept `?code=XXXXXX` to prefill the room code.
+
 ## Frontend Routes
 
 - `/` — home/landing with Host/Join options
