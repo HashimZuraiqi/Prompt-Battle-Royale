@@ -7,7 +7,8 @@ import {
 } from "@workspace/api-client-react";
 import { useLocalStorage, useCountdown } from "@/lib/hooks";
 import { motion } from "framer-motion";
-import { Loader2, Send, Clock, Trophy } from "lucide-react";
+import { Loader2, Send, Clock, Trophy, Check } from "lucide-react";
+import { Eyebrow, GdgLogo, GoogleColors, SlidePage } from "@/components/gdg/brand";
 
 export default function PlayerView() {
   const { code } = useParams();
@@ -91,24 +92,39 @@ export default function PlayerView() {
 
   if (!room || room.status === "waiting") {
     return (
-      <div className="min-h-[100dvh] flex flex-col items-center justify-center p-6 bg-secondary text-secondary-foreground text-center gap-4">
-        <h1 className="text-3xl font-black uppercase bg-white text-foreground p-4 border-4 border-foreground shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-          You're In!
-        </h1>
-        <p className="text-xl font-bold uppercase">{playerName}</p>
-        <p className="text-base font-bold opacity-80">Waiting for host to start...</p>
-        <Loader2 className="mt-2 w-10 h-10 animate-spin" />
-      </div>
+      <SlidePage>
+        <div className="flex-1 flex flex-col items-center justify-center text-center gap-5">
+          <GdgLogo className="w-24 h-14" />
+          <Eyebrow color="green">You're in</Eyebrow>
+          <h1 className="text-5xl font-extrabold text-paper break-all">{playerName}</h1>
+          <p className="text-white/60 max-w-xs">
+            Eyes on the big screen. The host will start the battle any second now.
+          </p>
+          <div className="flex gap-2 mt-2">
+            {(["bg-g-blue", "bg-g-red", "bg-g-yellow", "bg-g-green"] as const).map((c, i) => (
+              <motion.span
+                key={c}
+                className={`w-3 h-3 rounded-full ${c}`}
+                animate={{ y: [0, -10, 0] }}
+                transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.12 }}
+              />
+            ))}
+          </div>
+        </div>
+      </SlidePage>
     );
   }
 
   if (!currentRound) {
     return (
-      <div className="min-h-[100dvh] flex flex-col items-center justify-center p-6 text-center gap-4">
-        <h2 className="text-3xl font-black uppercase">Get Ready</h2>
-        <p className="text-lg font-bold text-muted-foreground">Waiting for the next round...</p>
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
+      <SlidePage>
+        <div className="flex-1 flex flex-col items-center justify-center text-center gap-4">
+          <Eyebrow color="yellow">Get ready</Eyebrow>
+          <h2 className="text-4xl font-extrabold text-paper">Round 01 is loading…</h2>
+          <p className="text-white/60">Warm up those prompting fingers.</p>
+          <Loader2 className="w-8 h-8 animate-spin text-g-yellow" />
+        </div>
+      </SlidePage>
     );
   }
 
@@ -118,20 +134,21 @@ export default function PlayerView() {
   const myScore = room.players?.find(p => p.id === playerId)?.totalScore || 0;
 
   const timerPercent = Math.min(100, (timeLeft / (currentRound.timeLimit || 60)) * 100);
-  const timerColor = timeLeft <= 10 ? "bg-destructive" : timeLeft <= 20 ? "bg-yellow-400" : "bg-primary";
+  const timerColor = timeLeft <= 10 ? "bg-g-red" : timeLeft <= 20 ? "bg-g-yellow" : "bg-g-blue";
 
   return (
-    <div className="min-h-[100dvh] flex flex-col bg-white">
+    <div className="min-h-[100dvh] flex flex-col">
 
       {/* Header */}
-      <div className="bg-foreground text-white px-4 py-3 flex items-center justify-between shrink-0">
-        <div className="font-black text-base truncate max-w-[150px]" data-testid="text-player-name">{playerName}</div>
-        <div className="flex items-center gap-3">
-          <div className="font-bold text-sm bg-primary text-primary-foreground px-3 py-1 border-2 border-white/30">
-            {myScore} pts
-          </div>
+      <div className="sticky top-0 z-10 border-b border-white/10 bg-ink/70 backdrop-blur-md px-4 py-3 flex items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <GdgLogo className="w-8 h-5 shrink-0" />
+          <div className="font-semibold text-paper truncate max-w-[140px]" data-testid="text-player-name">{playerName}</div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="pill-green text-sm tabular-nums">{myScore} pts</div>
           {currentRound.status === "open" && (
-            <div className={`flex items-center gap-1 font-black text-lg px-3 py-1 border-2 border-white/30 ${timeLeft <= 10 ? "bg-destructive animate-pulse" : "bg-secondary text-secondary-foreground"}`} data-testid="text-timer">
+            <div className={`flex items-center gap-1 font-display font-extrabold text-lg px-3 py-1 rounded-full tabular-nums ${timeLeft <= 10 ? "bg-g-red text-white animate-pulse" : timeLeft <= 20 ? "bg-g-yellow text-ink" : "bg-g-blue text-white"}`} data-testid="text-timer">
               <Clock className="w-4 h-4" />
               {timeLeft}
             </div>
@@ -141,29 +158,24 @@ export default function PlayerView() {
 
       {/* Timer bar */}
       {currentRound.status === "open" && (
-        <div className="h-2 bg-muted w-full shrink-0">
-          <motion.div
-            className={`h-full ${timerColor} transition-all`}
+        <div className="h-1.5 bg-white/10 w-full shrink-0">
+          <div
+            className={`h-full ${timerColor} transition-all duration-1000`}
             style={{ width: `${timerPercent}%` }}
           />
         </div>
       )}
 
       {/* Main content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-6">
-
-        {/* Round info */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-bold uppercase text-muted-foreground">Round {currentRound.roundNumber}</span>
-          <span className="bg-secondary text-secondary-foreground px-2 py-0.5 border-2 border-foreground font-black uppercase text-sm">
-            {currentRound.category}
-          </span>
-        </div>
+      <div className="flex-1 p-4 space-y-4 pb-8 w-full max-w-xl mx-auto">
 
         {/* Challenge */}
-        <div className="bg-muted p-4 border-l-4 border-primary border-y-2 border-r-2 border-foreground">
-          <div className="text-xs font-bold uppercase text-muted-foreground mb-1">Your Challenge</div>
-          <p className="text-base font-bold leading-snug" data-testid="text-challenge">{currentRound.prompt}</p>
+        <div className="glass-yellow p-5">
+          <div className="flex items-center justify-between gap-2">
+            <Eyebrow color="yellow">Round {String(currentRound.roundNumber).padStart(2, "0")}</Eyebrow>
+            <span className="pill-yellow text-xs">{currentRound.category}</span>
+          </div>
+          <p className="mt-3 text-xl font-display font-bold text-paper leading-snug" data-testid="text-challenge">{currentRound.prompt}</p>
         </div>
 
         {/* States */}
@@ -173,73 +185,86 @@ export default function PlayerView() {
             animate={{ y: 0, opacity: 1 }}
             className="space-y-4"
           >
-            <h2 className="text-2xl font-black uppercase text-center">Round Results</h2>
-
             {mySubmission ? (
               <>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="text-center p-4 bg-primary text-primary-foreground border-4 border-foreground">
-                    <div className="text-xs font-bold uppercase mb-1">Your Score</div>
-                    <div className="text-5xl font-black" data-testid="text-score">{mySubmission.score}</div>
+                  <div className="glass-blue p-4 text-center">
+                    <div className="eyebrow text-g-blue">Score</div>
+                    <div className="font-display text-6xl font-extrabold text-paper mt-1" data-testid="text-score">{mySubmission.score}</div>
                   </div>
-                  <div className="text-center p-4 bg-secondary text-secondary-foreground border-4 border-foreground">
-                    <div className="text-xs font-bold uppercase mb-1">Rank</div>
-                    <div className="text-5xl font-black" data-testid="text-rank">#{mySubmission.rank}</div>
+                  <div className="glass-green p-4 text-center">
+                    <div className="eyebrow text-g-green">Rank</div>
+                    <div className="font-display text-6xl font-extrabold text-paper mt-1" data-testid="text-rank">#{mySubmission.rank}</div>
                   </div>
                 </div>
 
-                <div className="bg-muted p-4 border-4 border-foreground">
-                  <h3 className="text-sm font-black uppercase mb-2 flex items-center gap-1">
-                    <Trophy className="w-4 h-4 text-primary" /> AI Feedback
-                  </h3>
-                  <p className="text-sm font-medium leading-relaxed" data-testid="text-feedback">
+                {mySubmission.rank === 1 && (
+                  <div className="text-center font-display text-2xl font-extrabold">
+                    <GoogleColors text="Round winner!" />
+                  </div>
+                )}
+
+                <div className="glass p-4">
+                  <div className="flex items-center gap-1.5">
+                    <Trophy className="w-4 h-4 text-g-yellow" />
+                    <span className="eyebrow text-g-yellow">AI feedback</span>
+                  </div>
+                  <p className="mt-2 text-white/80 leading-relaxed" data-testid="text-feedback">
                     {mySubmission.feedback || "No feedback provided."}
                   </p>
                 </div>
 
-                <div className="bg-white border-4 border-foreground p-4">
-                  <div className="text-xs font-bold uppercase text-muted-foreground mb-2">Your Prompt</div>
-                  <p className="text-sm font-medium leading-relaxed text-muted-foreground italic">"{mySubmission.promptText}"</p>
+                <div className="glass p-4">
+                  <div className="eyebrow text-white/50">Your prompt</div>
+                  <p className="mt-2 text-sm text-white/60 italic leading-relaxed">
+                    {mySubmission.promptText ? `"${mySubmission.promptText}"` : "Nothing submitted in time."}
+                  </p>
                 </div>
               </>
             ) : (
-              <div className="text-center p-10 border-4 border-dashed border-foreground">
-                <div className="text-xl font-black uppercase text-muted-foreground">No submission this round</div>
-              </div>
+              <div className="glass p-10 text-center text-white/60">No submission this round</div>
             )}
+            <p className="text-center text-sm text-white/50">Next round coming up — watch the big screen.</p>
           </motion.div>
 
         ) : isJudging ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="bg-primary text-primary-foreground p-8 border-4 border-foreground text-center"
+            className="glass-blue p-10 text-center"
           >
-            <Loader2 className="w-14 h-14 animate-spin mx-auto mb-4" />
-            <div className="text-2xl font-black uppercase">AI is Judging</div>
-            <div className="text-sm font-bold mt-2 opacity-80">Results coming soon...</div>
+            <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-g-blue" />
+            <div className="font-display text-2xl font-extrabold text-paper">The AI is judging</div>
+            <div className="text-sm text-white/60 mt-2">Fingers crossed…</div>
           </motion.div>
 
         ) : currentRound.status === "open" ? (
           hasSubmitted ? (
-            <div className="text-center p-10 bg-muted border-4 border-foreground border-dashed">
-              <div className="text-2xl font-black uppercase text-primary mb-2">Submitted!</div>
-              <div className="text-base font-bold text-muted-foreground">Waiting for others...</div>
+            <div className="glass-green p-10 text-center">
+              <Check className="w-12 h-12 mx-auto text-g-green" />
+              <div className="font-display text-3xl font-extrabold text-paper mt-2">Locked in!</div>
+              <div className="text-white/60 mt-1">Waiting for the others…</div>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-3">
               <textarea
                 value={promptText}
                 onChange={(e) => setPromptText(e.target.value)}
-                className="w-full input-neo min-h-[160px] p-4 text-base resize-none"
-                placeholder="Write your best prompt here..."
+                className="field min-h-[180px] p-4 text-base resize-none"
+                placeholder="You are a… Your task is… Include… Format it as…"
                 required
                 data-testid="textarea-prompt"
               />
+              <div className="flex flex-wrap gap-1.5 text-xs">
+                <span className="pill-blue text-xs">Give it a role</span>
+                <span className="pill-red text-xs">Add context</span>
+                <span className="pill-yellow text-xs">Set constraints</span>
+                <span className="pill-green text-xs">Define the format</span>
+              </div>
               <button
                 type="submit"
                 disabled={submitPrompt.isPending || !promptText.trim()}
-                className="w-full btn-neo py-4 text-lg font-black flex items-center justify-center gap-2"
+                className="btn-gdg w-full py-4 text-lg"
                 data-testid="button-submit-prompt"
               >
                 {submitPrompt.isPending ? (
